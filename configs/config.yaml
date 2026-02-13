@@ -1,0 +1,30 @@
+task:
+name: text_classification
+dataset: ag_news
+num_labels: 4
+
+data:
+max_length: 128
+batch_size: 32
+seed: 42
+
+paths:
+runs_dir: runs
+figures_dir: report/figures
+tables_dir: report/tables
+
+baseline:
+name: tfidf_logreg
+
+transformer:
+model_name: distilbert-base-uncased
+
+training:
+epochs: 3
+learning_rate: 2e-5
+weight_decay: 0.01
+
+evaluation:
+metrics:
+- accuracy
+- macro_f1
