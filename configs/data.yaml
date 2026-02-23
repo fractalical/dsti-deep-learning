@@ -1,0 +1,91 @@
+task:
+  name: text_classification
+  dataset: ag_news
+  num_labels: 4
+
+data:
+  # how to build the input text
+  text_cols: ["title", "description"]
+  text_sep: " "
+  lowercase: false
+
+  # split strategy (frozen)
+  split:
+    train_ratio: 0.90
+    val_ratio: 0.10
+    stratify_col: "label"
+    freeze: true
+    split_name: "v1_seed42_train90_val10"   # used in filenames
+
+  # tokenizer / loaders
+  max_length: 128
+  batch_size: 32
+  num_workers: 2
+  shuffle_train: true
+  pin_memory: true
+  drop_last: false
+
+  seed: 42
+  deterministic: true   # set torch/cudnn deterministic flags
+
+paths:
+  # dataset locations
+  raw_train_csv: data/raw/train.csv
+  # if you also have an official test file, set it here (kept untouched)
+  raw_test_csv: null    # e.g. data/raw/test.csv
+
+  # frozen split + processed files
+  splits_dir: data/splits
+  processed_dir: data/processed
+  split_json: data/splits/splits_v1_seed42_train90_val10.json
+  train_csv: data/processed/train.csv
+  val_csv: data/processed/val.csv
+  test_csv: null        # optional (if you have an official test)
+
+  # outputs
+  runs_dir: runs
+  figures_dir: report/figures
+  tables_dir: report/tables
+  metrics_dir: report/metrics
+
+eda:
+  n_examples_per_class: 3
+  hist_bins: 50
+  quantiles: [0.50, 0.90, 0.95, 0.99]
+  save_figures: true
+  save_tables: true
+
+baseline:
+  name: tfidf_logreg
+  tfidf:
+    ngram_range: [1, 2]
+    max_features: 200000
+    min_df: 2
+  logreg:
+    max_iter: 2000
+    C: 1.0
+
+transformer:
+  model_name: distilbert-base-uncased
+  # if you later switch:
+  # model_name: roberta-base
+
+training:
+  epochs: 3
+  learning_rate: 2e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.0
+  max_grad_norm: 1.0
+  fp16: false
+  eval_strategy: "epoch"
+  save_strategy: "epoch"
+  logging_steps: 50
+
+evaluation:
+  metrics:
+    - accuracy
+    - macro_f1
+  diagnostics:
+    confusion_matrix: true
+    per_class_report: true   # precision/recall/f1 per class
+    save_predictions: true   # save y_true/y_pred for analysis
