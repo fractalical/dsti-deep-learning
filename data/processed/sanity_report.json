@@ -1,0 +1,33 @@
+{
+  "n_total": 120000,
+  "n_train": 108000,
+  "n_val": 12000,
+  "missing": {
+    "label": 0,
+    "title": 0,
+    "description": 0
+  },
+  "label_dist": {
+    "total": {
+      "1": 30000,
+      "2": 30000,
+      "3": 30000,
+      "4": 30000
+    },
+    "train": {
+      "1": 27000,
+      "2": 27000,
+      "3": 27000,
+      "4": 27000
+    },
+    "val": {
+      "1": 3000,
+      "2": 3000,
+      "3": 3000,
+      "4": 3000
+    }
+  },
+  "duplicate_rows_total": 86,
+  "leakage_exact_train_val": 11,
+  "leakage_same_title_train_val": 944
+}
