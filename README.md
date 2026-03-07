@@ -28,7 +28,7 @@
 
 # Config
 
-# All key parameters live in configs\\config.yaml.
+# All key parameters live in configs/data.yaml
 
 # 
 
