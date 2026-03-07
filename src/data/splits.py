@@ -33,6 +33,27 @@ def freeze_train_val_split(
     """
     if abs((train_ratio + val_ratio) - 1.0) > 1e-9:
         raise ValueError("train_ratio + val_ratio must equal 1.0")
+    
+    # --- Label normalization (important for transformers)
+    # AG News CSV is often 1..4; transformers with num_labels=4 require 0..3.
+    if label_col not in df_train.columns:
+        raise KeyError(f"Label column '{label_col}' not found in df_train")
+
+    label_offset = 0
+    y_series = pd.to_numeric(df_train[label_col], errors="raise")
+
+    mn, mx = int(y_series.min()), int(y_series.max())
+    n_unique = int(y_series.nunique())
+
+    # Detect 1-indexed class labels (e.g., 1..4) and shift to 0..3
+    if mn == 1 and mx == n_unique:
+        df_train = df_train.copy()
+        df_train[label_col] = (y_series - 1).astype(int)
+        label_offset = -1
+    else:
+        # Ensure int dtype for safety
+        df_train[label_col] = y_series.astype(int)
+    
 
     idx = np.arange(len(df_train))
     y = df_train[label_col].values
@@ -51,6 +72,7 @@ def freeze_train_val_split(
             "train_ratio": train_ratio,
             "val_ratio": val_ratio,
             "n_total": int(len(df_train)),
+            "label_offset": label_offset,
         },
         "splits": {
             "train": train_idx.tolist(),
