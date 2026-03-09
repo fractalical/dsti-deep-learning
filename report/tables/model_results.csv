@@ -1,0 +1,5 @@
+model,run_name,epochs,batch_size,max_length,learning_rate,val_accuracy,val_macro_f1,notes
+baseline,baseline_20260305_192458,NA,NA,NA,NA,0.9223,0.9220,"TF-IDF + Logistic Regression baseline"
+distilbert,distilbert_20260305_215837,1,32,128,2e-5,0.9408,0.9408,"DistilBERT 1 epoch"
+distilbert,distilbert_20260307_172616,2,32,128,2e-5,0.9467,0.9467,"Best current model"
+roberta,roberta_20260308_030648,1,8,128,2e-5,0.9437,0.9438,"RoBERTa 1 epoch"
