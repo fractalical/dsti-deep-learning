@@ -45,9 +45,11 @@ def freeze_train_val_split(
     mn, mx = int(y_series.min()), int(y_series.max())
     n_unique = int(y_series.nunique())
 
+    # Always work on a copy to avoid mutating the caller's DataFrame
+    df_train = df_train.copy()
+
     # Detect 1-indexed class labels (e.g., 1..4) and shift to 0..3
     if mn == 1 and mx == n_unique:
-        df_train = df_train.copy()
         df_train[label_col] = (y_series - 1).astype(int)
         label_offset = -1
     else:
