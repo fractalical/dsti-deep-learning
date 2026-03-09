@@ -109,7 +109,9 @@ class TransformerFineTuner:
                 greater_is_better=True,
                 report_to="none",
             )
-        except TypeError:
+        except TypeError as exc:
+            if "unexpected keyword argument" not in str(exc):
+                raise
             args = TrainingArguments(
                 output_dir=str(output_dir / "checkpoints"),
                 num_train_epochs=int(epochs),
@@ -141,7 +143,9 @@ class TransformerFineTuner:
                 processing_class=self.tokenizer,  # NEW
                 compute_metrics=hf_compute_metrics,
             )
-        except TypeError:
+        except TypeError as exc:
+            if "unexpected keyword argument" not in str(exc):
+                raise
             trainer = Trainer(
                 model=self.model,
                 args=args,
