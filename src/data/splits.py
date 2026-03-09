@@ -12,11 +12,14 @@ Purpose:
 - Ensure reproducible and consistent data splits across all experiments
 """
 from __future__ import annotations
+
 import json
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+
 
 def freeze_train_val_split(
     df_train: pd.DataFrame,
@@ -33,29 +36,26 @@ def freeze_train_val_split(
     """
     if abs((train_ratio + val_ratio) - 1.0) > 1e-9:
         raise ValueError("train_ratio + val_ratio must equal 1.0")
-    
+
     # --- Label normalization (important for transformers)
     # AG News CSV is often 1..4; transformers with num_labels=4 require 0..3.
     if label_col not in df_train.columns:
         raise KeyError(f"Label column '{label_col}' not found in df_train")
 
-    label_offset = 0
-    y_series = pd.to_numeric(df_train[label_col], errors="raise")
-
-    mn, mx = int(y_series.min()), int(y_series.max())
-    n_unique = int(y_series.nunique())
-
     # Always work on a copy to avoid mutating the caller's DataFrame
     df_train = df_train.copy()
 
-    # Detect 1-indexed class labels (e.g., 1..4) and shift to 0..3
-    if mn == 1 and mx == n_unique:
-        df_train[label_col] = (y_series - 1).astype(int)
+    label_offset = 0
+    y_series = pd.to_numeric(df_train[label_col], errors="raise").astype(int)
+
+    unique_vals = sorted(y_series.unique().tolist())
+
+    # Detect 1-indexed contiguous class labels, e.g. [1, 2, 3, 4]
+    if unique_vals == list(range(1, len(unique_vals) + 1)):
+        df_train[label_col] = y_series - 1
         label_offset = -1
     else:
-        # Ensure int dtype for safety
-        df_train[label_col] = y_series.astype(int)
-    
+        df_train[label_col] = y_series
 
     idx = np.arange(len(df_train))
     y = df_train[label_col].values
@@ -91,6 +91,7 @@ def freeze_train_val_split(
     df_train.iloc[val_idx].to_csv(out_processed_dir / "val.csv", index=False)
 
     return split_obj
+
 
 def load_frozen_split(split_json: Path) -> dict:
     if not split_json.exists():

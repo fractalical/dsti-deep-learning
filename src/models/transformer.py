@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 import inspect
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 import torch
 from torch.utils.data import Dataset
 from transformers import (
-    AutoTokenizer,
     AutoModelForSequenceClassification,
+    AutoTokenizer,
     Trainer,
     TrainingArguments,
 )
@@ -84,17 +84,22 @@ class TransformerFineTuner:
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        train_ds = TextClsTorchDataset(train_texts, train_labels, self.tokenizer, max_length=max_length)
-        val_ds = TextClsTorchDataset(val_texts, val_labels, self.tokenizer, max_length=max_length)
+        train_ds = TextClsTorchDataset(
+            train_texts, train_labels, self.tokenizer, max_length=max_length
+        )
+        val_ds = TextClsTorchDataset(
+            val_texts, val_labels, self.tokenizer, max_length=max_length
+        )
 
         # ---- Transformers compatibility:
         # Newer versions renamed `evaluation_strategy` -> `eval_strategy`.
         # We detect which name is accepted by inspecting the signature so that
         # unrelated TypeErrors are never swallowed by a broad except clause.
-        _ta_params = inspect.signature(TrainingArguments.__init__).parameters
-        _eval_strategy_kwarg = (
-            "eval_strategy" if "eval_strategy" in _ta_params else "evaluation_strategy"
+        ta_params = inspect.signature(TrainingArguments.__init__).parameters
+        eval_strategy_kwarg = (
+            "eval_strategy" if "eval_strategy" in ta_params else "evaluation_strategy"
         )
+
         args = TrainingArguments(
             output_dir=str(output_dir / "checkpoints"),
             num_train_epochs=int(epochs),
@@ -105,7 +110,7 @@ class TransformerFineTuner:
             warmup_ratio=float(warmup_ratio),
             max_grad_norm=float(max_grad_norm),
             fp16=bool(fp16),
-            **{_eval_strategy_kwarg: eval_strategy},
+            **{eval_strategy_kwarg: eval_strategy},
             save_strategy=save_strategy,
             logging_steps=int(logging_steps),
             seed=int(seed),
@@ -118,16 +123,17 @@ class TransformerFineTuner:
         # ---- Trainer API compatibility:
         # Newer versions accept `processing_class=...`, older versions accept `tokenizer=...`.
         # We detect which name is accepted by inspecting the signature.
-        _trainer_params = inspect.signature(Trainer.__init__).parameters
-        _tokenizer_kwarg = (
-            "processing_class" if "processing_class" in _trainer_params else "tokenizer"
+        trainer_params = inspect.signature(Trainer.__init__).parameters
+        tokenizer_kwarg = (
+            "processing_class" if "processing_class" in trainer_params else "tokenizer"
         )
+
         trainer = Trainer(
             model=self.model,
             args=args,
             train_dataset=train_ds,
             eval_dataset=val_ds,
-            **{_tokenizer_kwarg: self.tokenizer},
+            **{tokenizer_kwarg: self.tokenizer},
             compute_metrics=hf_compute_metrics,
         )
 
