@@ -1,86 +1,264 @@
 # dsti-deep-learning
 
-# 
+Deep Learning group project for **AG News topic classification**.
 
-# Task
+## Overview
 
-# Text classification on AG News. Baseline plus two transformer improvements. Metrics: Accuracy and Macro-F1.
+This project compares a classical baseline with transformer-based improvements for **4-class news classification** on the **AG News** dataset.
 
-# 
+### Task
+Predict the topic of a news article from the following classes:
 
-# Setup (Windows PowerShell)
+- World
+- Sports
+- Business
+- Sci/Tech
 
-# 
+### Models
+- **Baseline:** TF-IDF + Logistic Regression
+- **Improvement #1:** DistilBERT
+- **Improvement #2:** RoBERTa
 
-# Create and activate environment
+### Metrics
+- **Accuracy**
+- **Macro-F1**
 
-# py -m venv venv
+---
 
-# .\\venv\\Scripts\\activate
+## Repository Structure
 
-# 
+```text
+configs/      YAML configuration files
+data/         Raw, split, and processed data
+docs/         Experiment design and modelling notes
+notebooks/    Sanity-check and EDA notebooks
+report/       Tables and figures for the final PDF
+runs/         Saved run artefacts (metrics, predictions, logs)
+src/          Reusable source code for data, training, and evaluation
+README.md
+requirements.txt
+```
 
-# Install dependencies
+---
 
-# pip install -r requirements.txt
+## Configuration
 
-# 
+All key parameters live in:
 
-# Config
+```text
+configs/data.yaml
+```
 
-# All key parameters live in configs/data.yaml
+This includes:
+- dataset and task settings
+- text-column construction
+- split strategy
+- batch size and max sequence length
+- training hyperparameters
+- output paths
 
-# 
+---
 
-# Project structure
+## Expected Data Format
 
-# docs: experiment scope and design
+The pipeline expects CSV files with the following columns:
 
-# notebooks: sanity checks and EDA
+- `label`
+- `title`
+- `description`
 
-# src: reusable code (data, training, evaluation)
+Expected paths:
 
-# runs: saved models, predictions, logs
+```text
+data/raw/train.csv
+data/splits/
+data/processed/train.csv
+data/processed/val.csv
+```
 
-# report: figures and tables for the PDF
+---
 
-# 
+## Setup (Windows PowerShell)
 
-# Run order
+### 1. Create a virtual environment
 
-# 
+```powershell
+py -m venv venv
+```
 
-# Data sanity and EDA
+### 2. Allow PowerShell activation scripts (one-time setup)
 
-# Run notebooks in order:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
 
-# notebooks\\01\_data\_load\_sanity.ipynb
+### 3. Activate the virtual environment
 
-# notebooks\\02\_eda.ipynb
+```powershell
+.\venv\Scripts\Activate.ps1
+```
 
-# 
+> Note: the execution-policy command does **not** auto-activate the environment.  
+> You still need to run `.\venv\Scripts\Activate.ps1` each time you open a new terminal.
 
-# Train baseline
+### 4. Install dependencies
 
-# Outputs saved to runs\\baseline\_\*
+```powershell
+pip install -r requirements.txt
+pip install accelerate
+```
 
-# 
+Optional, for notebooks:
 
-# Evaluate baseline
+```powershell
+pip install notebook
+```
 
-# Outputs saved to report\\figures and report\\tables
+---
 
-# 
+## Workflow
 
-# Train improvements
+### 1. Data Sanity Check and EDA
 
-# DistilBERT outputs to runs\\distilbert\_\*
+Run the notebooks in order:
 
-# RoBERTa or DeBERTa outputs to runs\\roberta\_\* or runs\\deberta\_\*
+```text
+notebooks/01_data_load_sanity.ipynb
+notebooks/02_eda.ipynb
+```
 
-# 
+### 2. Prepare Processed Train/Validation Data
 
-# Final reproducibility check
+Before training, make sure these files exist:
 
-# Follow the README from a clean environment and confirm metrics match.
+```text
+data/processed/train.csv
+data/processed/val.csv
+```
 
+The split should be frozen and saved under:
+
+```text
+data/splits/
+```
+
+### 3. Train the Baseline
+
+```powershell
+python -m src.training.train_baseline --config configs/data.yaml
+```
+
+Outputs are saved to:
+
+```text
+runs/baseline_*/
+```
+
+### 4. Train DistilBERT
+
+```powershell
+python -m src.training.train_transformer distilbert-base-uncased --config configs/data.yaml
+```
+
+Outputs are saved to:
+
+```text
+runs/distilbert_*/
+```
+
+### 5. Train RoBERTa
+
+```powershell
+python -m src.training.train_transformer roberta-base --config configs/data.yaml
+```
+
+Outputs are saved to:
+
+```text
+runs/roberta_*/
+```
+
+### 6. Run an Ablation Study
+
+Example: learning-rate ablation for DistilBERT
+
+```powershell
+python -m src.training.train_ablation --config configs/data.yaml --model distilbert-base-uncased --param learning_rate --values 1e-5 2e-5 --epochs 1
+```
+
+Outputs are saved to:
+
+```text
+runs/ablation_*/
+```
+
+---
+
+## Run Artefacts
+
+Heavy checkpoints and model weights are intentionally **not committed**.
+
+The repository tracks lightweight artefacts needed for evaluation and reporting, such as:
+
+- `metrics_val.json`
+- `predictions_val.csv`
+- `config_snapshot.yaml`
+- `log_history.json`
+- `overrides.json` where applicable
+
+---
+
+## Current Validation Results
+
+| Model | Setting | Accuracy | Macro-F1 |
+|------|---------|----------|----------|
+| TF-IDF + Logistic Regression | Baseline | 0.9223 | 0.9220 |
+| DistilBERT | 1 epoch | 0.9408 | 0.9408 |
+| DistilBERT | 2 epochs | **0.9467** | **0.9467** |
+| RoBERTa | 1 epoch | 0.9437 | 0.9438 |
+
+### Ablation: DistilBERT Learning Rate
+
+| Learning Rate | Epochs | Accuracy | Macro-F1 |
+|--------------|--------|----------|----------|
+| 1e-5 | 1 | 0.9350 | 0.9349 |
+| 2e-5 | 1 | **0.9408** | **0.9408** |
+
+**Best current model:** DistilBERT trained for 2 epochs.
+
+---
+
+## Evaluation and Report Outputs
+
+Report-ready summaries are stored in:
+
+```text
+report/tables/
+report/figures/
+docs/modeling_notes.md
+```
+
+These files support:
+- evaluation and plotting
+- report drafting
+- comparison across runs
+
+---
+
+## Reproducibility Notes
+
+- The train/validation split is frozen and saved to JSON.
+- Labels are normalised for transformer compatibility during split generation.
+- Training is controlled through `configs/data.yaml`.
+- Results should be reproducible from a clean environment using the steps above.
+
+---
+
+## Final Reproducibility Check
+
+Before final submission:
+
+- verify notebooks run cleanly
+- verify training commands work from a clean environment
+- confirm reported metrics match the saved run artefacts
+- ensure report tables and figures match the latest tracked outputs
