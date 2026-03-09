@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import inspect
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 
 import torch
 from torch.utils.data import Dataset
 from transformers import (
-    AutoTokenizer,
     AutoModelForSequenceClassification,
+    AutoTokenizer,
     Trainer,
     TrainingArguments,
 )
@@ -83,77 +84,58 @@ class TransformerFineTuner:
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        train_ds = TextClsTorchDataset(train_texts, train_labels, self.tokenizer, max_length=max_length)
-        val_ds = TextClsTorchDataset(val_texts, val_labels, self.tokenizer, max_length=max_length)
+        train_ds = TextClsTorchDataset(
+            train_texts, train_labels, self.tokenizer, max_length=max_length
+        )
+        val_ds = TextClsTorchDataset(
+            val_texts, val_labels, self.tokenizer, max_length=max_length
+        )
 
-                # ---- Transformers compatibility:
+        # ---- Transformers compatibility:
         # Newer versions renamed `evaluation_strategy` -> `eval_strategy`.
-        # We support both by trying the new name first.
-        try:
-            args = TrainingArguments(
-                output_dir=str(output_dir / "checkpoints"),
-                num_train_epochs=int(epochs),
-                per_device_train_batch_size=int(batch_size),
-                per_device_eval_batch_size=int(batch_size),
-                learning_rate=float(learning_rate),
-                weight_decay=float(weight_decay),
-                warmup_ratio=float(warmup_ratio),
-                max_grad_norm=float(max_grad_norm),
-                fp16=bool(fp16),
-                eval_strategy=eval_strategy,      # NEW name
-                save_strategy=save_strategy,
-                logging_steps=int(logging_steps),
-                seed=int(seed),
-                load_best_model_at_end=True,
-                metric_for_best_model="macro_f1",
-                greater_is_better=True,
-                report_to="none",
-            )
-        except TypeError as exc:
-            if "unexpected keyword argument" not in str(exc):
-                raise
-            args = TrainingArguments(
-                output_dir=str(output_dir / "checkpoints"),
-                num_train_epochs=int(epochs),
-                per_device_train_batch_size=int(batch_size),
-                per_device_eval_batch_size=int(batch_size),
-                learning_rate=float(learning_rate),
-                weight_decay=float(weight_decay),
-                warmup_ratio=float(warmup_ratio),
-                max_grad_norm=float(max_grad_norm),
-                fp16=bool(fp16),
-                evaluation_strategy=eval_strategy,  # OLD name (fallback)
-                save_strategy=save_strategy,
-                logging_steps=int(logging_steps),
-                seed=int(seed),
-                load_best_model_at_end=True,
-                metric_for_best_model="macro_f1",
-                greater_is_better=True,
-                report_to="none",
-            )
+        # We detect which name is accepted by inspecting the signature so that
+        # unrelated TypeErrors are never swallowed by a broad except clause.
+        ta_params = inspect.signature(TrainingArguments.__init__).parameters
+        eval_strategy_kwarg = (
+            "eval_strategy" if "eval_strategy" in ta_params else "evaluation_strategy"
+        )
 
-                # ---- Trainer API compatibility:
-        # Some versions accept `processing_class=...` (newer), others accept `tokenizer=...` (older).
-        try:
-            trainer = Trainer(
-                model=self.model,
-                args=args,
-                train_dataset=train_ds,
-                eval_dataset=val_ds,
-                processing_class=self.tokenizer,  # NEW
-                compute_metrics=hf_compute_metrics,
-            )
-        except TypeError as exc:
-            if "unexpected keyword argument" not in str(exc):
-                raise
-            trainer = Trainer(
-                model=self.model,
-                args=args,
-                train_dataset=train_ds,
-                eval_dataset=val_ds,
-                tokenizer=self.tokenizer,  # OLD (fallback)
-                compute_metrics=hf_compute_metrics,
-            )
+        args = TrainingArguments(
+            output_dir=str(output_dir / "checkpoints"),
+            num_train_epochs=int(epochs),
+            per_device_train_batch_size=int(batch_size),
+            per_device_eval_batch_size=int(batch_size),
+            learning_rate=float(learning_rate),
+            weight_decay=float(weight_decay),
+            warmup_ratio=float(warmup_ratio),
+            max_grad_norm=float(max_grad_norm),
+            fp16=bool(fp16),
+            **{eval_strategy_kwarg: eval_strategy},
+            save_strategy=save_strategy,
+            logging_steps=int(logging_steps),
+            seed=int(seed),
+            load_best_model_at_end=True,
+            metric_for_best_model="macro_f1",
+            greater_is_better=True,
+            report_to="none",
+        )
+
+        # ---- Trainer API compatibility:
+        # Newer versions accept `processing_class=...`, older versions accept `tokenizer=...`.
+        # We detect which name is accepted by inspecting the signature.
+        trainer_params = inspect.signature(Trainer.__init__).parameters
+        tokenizer_kwarg = (
+            "processing_class" if "processing_class" in trainer_params else "tokenizer"
+        )
+
+        trainer = Trainer(
+            model=self.model,
+            args=args,
+            train_dataset=train_ds,
+            eval_dataset=val_ds,
+            **{tokenizer_kwarg: self.tokenizer},
+            compute_metrics=hf_compute_metrics,
+        )
 
         trainer.train()
 
