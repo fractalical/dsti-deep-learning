@@ -1,6 +1,26 @@
 venv/
 
-runs/
+# Ignore heavy model artifacts in runs/
+runs/**/*.bin
+runs/**/*.safetensors
+runs/**/*.msgpack
+runs/**/*.h5
+runs/**/*.ot
+runs/**/final_model/
+runs/**/checkpoint-*/
+
+# Ignore everything else in runs by default
+runs/**
+
+# Re-allow run directories themselves
+!runs/**/
+
+# Re-allow only the lightweight artifacts we actually want to share
+!runs/**/metrics_val.json
+!runs/**/predictions_val.csv
+!runs/**/config_snapshot.yaml
+!runs/**/log_history.json
+!runs/**/overrides.json
 
 __pycache__/
 
